@@ -476,4 +476,5 @@
   .beach-card:hover{border-color:var(--accent)}
   .webcam-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   @media(max-width:700px){.beach-grid,.webcam-grid{grid-template-columns:1fr}}
+  #test
 </style>
