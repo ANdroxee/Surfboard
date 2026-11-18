@@ -1,18 +1,44 @@
+// Webcams : on décrit seulement la source. L'adresse du flux le plus récent et l'heure de capture
+// sont résolues côté serveur (src/lib/server/webcams.js → /api/webcam), car les caméras Viewsurf
+// en « clips » changent d'identifiant à chaque nouveau clip.
+// - viewsurf : `page` = page publique de la caméra sur viewsurf.com
+// - skaping  : `path` + `mode` ('video' = dernier clip HD, 'live' = direct, 'pano' = photo 360°)
 export const SPOTS = [
-  { name: 'Lacanau', lat: 44.98, lon: -1.12, webcam: true },
-  { name: 'Le Porge', lat: 44.89, lon: -1.10, webcam: false },
-  { name: 'Hourtin', lat: 45.13, lon: -1.15, webcam: false },
-  { name: 'Montalivet', lat: 45.38, lon: -1.15, webcam: false },
-  { name: 'Cap Ferret', lat: 44.63, lon: -1.25, webcam: false },
+  { name: 'Lacanau', lat: 44.98, lon: -1.12, webcams: [
+    { label: 'SUD DU POSTE', provider: 'viewsurf', page: 'https://www.viewsurf.com/univers/surf/vue/654-france-aquitaine-lacanau-sud-du-poste-de-secours-nord' },
+    { label: 'PANORAMIQUE', provider: 'viewsurf', page: 'https://www.viewsurf.com/univers/surf/vue/7168-france-aquitaine-lacanau-panoramique-video-live' },
+  ] },
+  { name: 'Le Porge', lat: 44.89, lon: -1.10, webcams: [
+    // le clip HD (`video`) est le plus net ; le direct est souvent voilé par les embruns
+    { label: 'PLAGE NORD', provider: 'skaping', path: 'medoc-plein-sud/le-porge-ocean', mode: 'video', page: 'https://www.skaping.com/medoc-plein-sud/le-porge-ocean/video' },
+    { label: 'GRESSIER', provider: 'skaping', path: 'medoc-plein-sud/le-porge-ocean', mode: 'live', page: 'https://www.skaping.com/medoc-plein-sud/le-porge-ocean/live' },
+    { label: 'PANO 360', provider: 'skaping', path: 'medoc-plein-sud/le-porge-ocean', mode: 'pano', page: 'https://www.skaping.com/medoc-plein-sud/le-porge-ocean' },
+  ] },
+  { name: 'Hourtin', lat: 45.13, lon: -1.15, webcams: [] },
+  { name: 'Montalivet', lat: 45.38, lon: -1.15, webcams: [
+    { label: 'PLAGE NORD', provider: 'viewsurf', page: 'https://www.viewsurf.com/univers/surf/vue/13900-france-aquitaine-vendays-montalivet-plage-nord' },
+  ] },
+  { name: 'Cap Ferret', lat: 44.63, lon: -1.25, webcams: [] },
+  { name: 'Hossegor', lat: 43.665, lon: -1.45, webcams: [
+    { label: 'PLAGE', provider: 'viewsurf', page: 'https://www.viewsurf.com/univers/surf/vue/2058-france-aquitaine-soorts-hossegor-plage' },
+  ] },
 ];
+
+/** Distance à vol d'oiseau en km entre deux spots. */
+export function distanceKm(a, b) {
+  const R = 6371, rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad, dLon = (b.lon - a.lon) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(h)));
+}
 
 const W = 'https://api.open-meteo.com/v1/forecast';
 const M = 'https://marine-api.open-meteo.com/v1/marine';
 
 export async function fetchConditions(spot) {
   const [w, m] = await Promise.all([
-    fetch(`${W}?latitude=${spot.lat}&longitude=${spot.lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index,weather_code&hourly=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m&daily=sunrise,sunset&wind_speed_unit=kn&timezone=Europe/Paris`).then(r => r.json()),
-    fetch(`${M}?latitude=${spot.lat}&longitude=${spot.lon}&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period&hourly=wave_height,wave_period,wave_direction&timezone=Europe/Paris`).then(r => r.json()),
+    fetch(`${W}?latitude=${spot.lat}&longitude=${spot.lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index,weather_code&hourly=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m&daily=sunrise,sunset&wind_speed_unit=kn&timezone=Europe/Paris`).then(r => r.json()),
+    fetch(`${M}?latitude=${spot.lat}&longitude=${spot.lon}&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,sea_surface_temperature,wind_wave_height,wind_wave_period,wind_wave_direction&hourly=wave_height,wave_period,wave_direction,sea_level_height_msl&timezone=Europe/Paris&forecast_days=2`).then(r => r.json()),
   ]);
   return {
     temp: Math.round(w.current.temperature_2m),
@@ -38,6 +64,13 @@ export async function fetchConditions(spot) {
     hourlyCode: w.hourly?.weather_code?.slice(0, 24) ?? [],
     hourlyWind: w.hourly?.wind_speed_10m?.slice(0, 24) ?? [],
     hourlyWindDir: w.hourly?.wind_direction_10m?.slice(0, 24) ?? [],
+    hourlyGusts: w.hourly?.wind_gusts_10m?.slice(0, 24) ?? [],
+    waterTemp: m.current.sea_surface_temperature ?? null,
+    windWaveH: m.current.wind_wave_height ?? null,
+    windWavePeriod: m.current.wind_wave_period ?? null,
+    windWaveDir: m.current.wind_wave_direction ?? null,
+    hourlySeaLevel: m.hourly?.sea_level_height_msl?.slice(0, 48) ?? [],
+    fetchedAt: new Date(),
   };
 }
 export function windLabel(deg) {
@@ -88,3 +121,38 @@ export function uvLabel(v) {
 export const WEATHER = { 0:'☀️',1:'🌤',2:'⛅',3:'☁️',45:'🌫',51:'🌦',53:'🌦',61:'🌧',63:'🌧',80:'🌦',95:'⛈' };
 export const NIGHT = { 0:'🌙',1:'🌙',2:'☁️',3:'☁️',45:'🌫',51:'🌦',61:'🌧',80:'🌦',95:'⛈' };
 export const WEATHER_LABEL = { 0:'Ciel dégagé',1:'Peu nuageux',2:'Partiellement nuageux',3:'Couvert',45:'Brouillard',51:'Bruine',61:'Pluie légère',63:'Pluie',80:'Averses',95:'Orage' };
+
+/** Score de surf pour une heure donnée (index = heure du jour, 0–23). */
+export function hourScore(d, i) {
+  return surfScore({
+    swellH: d.hourlyWaves[i] ?? d.swellH,
+    swellPeriod: d.hourlyPeriod[i] ?? d.swellPeriod,
+    windDir: d.hourlyWindDir[i] ?? d.windDir,
+    wind: d.hourlyWind[i] ?? d.wind,
+    gusts: d.hourlyGusts[i] ?? d.gusts,
+  });
+}
+export const knToKmh = (kn) => Math.round(kn * 1.852);
+export function wetsuit(t) {
+  if (t == null) return '—';
+  if (t >= 22) return 'Lycra / shorty';
+  if (t >= 18) return 'Combi 3/2';
+  if (t >= 14) return 'Combi 4/3';
+  if (t >= 11) return '4/3 + chaussons';
+  return '5/4 + cagoule';
+}
+
+/** Détail du score : note /10 par facteur (mêmes seuils que surfScore). */
+export function scoreFactors(d, tidePos = null) {
+  const h = d.swellH, p = d.swellPeriod, wkn = d.wind, g = d.gusts, wt = windType(d.windDir);
+  const houle = h >= 0.5 && h <= 1.5 ? 9 : h > 1.5 && h <= 2.5 ? 7 : h > 3 ? 2 : h < 0.3 ? 2 : 5;
+  const periode = p >= 12 ? 9 : p >= 9 ? 7 : p >= 6 ? 5 : 3;
+  const vent = wt === 'offshore' ? (wkn > 20 ? 6 : 9) : wt === 'onshore' ? (wkn > 15 ? 2 : 4) : (wkn < 8 ? 7 : 5);
+  const rafales = g < 15 ? 9 : g < 22 ? 7 : g <= 30 ? 5 : 2;
+  const out = [['Houle', houle], ['Période', periode], ['Vent', vent], ['Rafales', rafales]];
+  // Marée : mi-marée = idéal sur les beach breaks girondins (0 = basse, 1 = haute)
+  if (tidePos != null) out.push(['Marée', Math.round((4 + 5 * (1 - Math.abs(tidePos - 0.5) * 2)) * 2) / 2]);
+  return out.map(([label, v]) => ({ label, v }));
+}
+/** Puissance de houle en eau profonde (kW par mètre de crête) ≈ 0,49 · H² · T. */
+export const wavePower = (h, t) => Math.round(0.49 * h * h * t);
