@@ -374,6 +374,12 @@
 
 <div class="page">
   <OceanBackground />
+  {#if view === 'spot'}
+    <button class="map-fab mono" onclick={backToMap} aria-label="Revenir à la carte">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" /></svg>
+      CARTE
+    </button>
+  {/if}
 
   <div class="wrap">
     <header class="top rv" style="--i:0">
@@ -550,7 +556,7 @@
             <div class="tide-now">
               <span class="mono big">{tide.level >= 0 ? '+' : ''}{tide.level.toFixed(2)}<small> m</small></span>
               <span class="soft">
-                {tide.rising ? 'Montante' : 'Descendante'} · {tide.rate >= 0 ? '+' : ''}{tide.rate} cm/h{#if tide.next} · {tide.next.high ? 'PM' : 'BM'} dans {tide.nextIn}{/if}
+                {tide.rising ? 'Montante' : 'Descendante'} · {tide.rate >= 0 ? '+' : ''}{tide.rate} cm/h{#if tide.next}{` · ${tide.next.high ? 'PM' : 'BM'} dans ${tide.nextIn}`}{/if}
               </span>
             </div>
             <svg viewBox="0 0 360 70" class="tide-svg" role="img" aria-label="Courbe de marée sur 24 h, position actuelle {hhmm(now)}">
@@ -738,7 +744,8 @@
   .top{display:flex;flex-wrap:wrap;align-items:center;gap:16px 24px}
   .wordmark{font-family:var(--mono);font-size:15px;font-weight:700;letter-spacing:.12em}
   .mob-title{display:none}
-  .spots{display:flex;flex-wrap:wrap;gap:6px}
+  .spots{display:flex;flex-wrap:wrap;gap:6px;order:10;flex-basis:100%}
+  .map-fab{display:none;position:fixed;left:50%;bottom:max(16px, env(safe-area-inset-bottom));z-index:30;transform:translateX(-50%);height:48px;padding:0 20px;border-radius:999px;background:var(--accent);color:var(--on-accent);border:none;box-shadow:0 10px 30px rgba(0,0,0,.45);align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.05em;cursor:pointer}
   .spot{height:40px;padding:0 14px;border-radius:10px;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--soft);background:transparent;border:1px solid transparent;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
   .spot:hover{color:var(--text)}
   .spot.cur{color:var(--text);background:var(--panel);border-color:var(--border)}
@@ -934,17 +941,18 @@
 
     .top{gap:12px}
     .wordmark,.date{display:none}
-    .mob-title{display:flex;flex-direction:column;gap:2px}
+    .mob-title{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+    .mob-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .mob-title .label{font-size:11px}
     .mob-name{font-size:20px;font-weight:700}
     .mode{margin-left:auto}
     .acct{width:40px;height:40px;font-size:15px}
     .acct-login{height:40px;padding:0 12px;font-size:11px}
     .fav-btn{height:44px;flex-shrink:0}
-    .map-btn{position:fixed;left:50%;bottom:max(16px, env(safe-area-inset-bottom));z-index:30;transform:translateX(-50%);height:48px;padding:0 20px;border-radius:999px;background:var(--accent);color:var(--on-accent);border:none;box-shadow:0 10px 30px rgba(0,0,0,.45)}
-    .map-btn:hover{border:none}
+    .map-btn{display:none}
+    .map-fab{display:flex}
     .wrap{padding-bottom:88px}
-    .mode button{padding:0 12px;font-size:11px}
+    .mode button{padding:0 10px;font-size:11px}
     .spots{order:3}
 
     .expert,.ex-row{gap:14px}

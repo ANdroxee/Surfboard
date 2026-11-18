@@ -22,6 +22,13 @@
   const ys = Object.values(SPOT_POS).map((p) => p.y);
   const xs = Object.values(SPOT_POS).map((p) => p.x);
   const CENTER = { cx: (Math.min(...xs) + Math.max(...xs)) / 2 + 120, cy: (Math.min(...ys) + Math.max(...ys)) / 2 };
+  // Cadrage d'ensemble : sur un écran étroit, on décale vers l'océan pour que les étiquettes
+  // (dessinées à gauche des marqueurs) restent dans le cadre.
+  const baseView = () => {
+    const h = baseH(), w = h * aspect, unit = h / Math.max(ch, 1);
+    const left = Math.min(...xs) - 150 * unit;
+    return { cx: Math.min(CENTER.cx, left + w / 2), cy: CENTER.cy, h };
+  };
   const SPAN = Math.max(...ys) - Math.min(...ys);
   const baseH = () => Math.max(SPAN + 450, 1000 / aspect); // assez haut pour tous les spots, assez large pour voir la terre
   const ZOOM_H = 230;
@@ -50,7 +57,7 @@
     }
     // une frame plus tard, le cadre est mesuré : on part vers le cadrage d'ensemble
     requestAnimationFrame(async () => {
-      await cam.set({ ...CENTER, h: baseH() }, from ? { duration: dur(1300), easing: cubicInOut } : { duration: dur(1600), easing: cubicOut });
+      await cam.set(baseView(), from ? { duration: dur(1300), easing: cubicInOut } : { duration: dur(1600), easing: cubicOut });
       introDone = true;
     });
   });
@@ -60,7 +67,7 @@
     aspect;
     if (!introDone) return;
     untrack(() => {
-      if (!zooming) cam.set({ ...CENTER, h: baseH() }, { duration: 0 });
+      if (!zooming) cam.set(baseView(), { duration: 0 });
     });
   });
 
@@ -82,8 +89,8 @@
   // Houle stylisée au large (lignes qui ondulent, parallèles à la côte)
   const swells = Array.from({ length: 11 }, (_, i) => {
     const x = 230 + i * 55;
-    let d = `M${x} 400`;
-    for (let y = 400; y < 2400; y += 160) d += ` q 14 40 0 80 t 0 80`;
+    let d = `M${x} -800`;
+    for (let y = -800; y < 4000; y += 160) d += ` q 14 40 0 80 t 0 80`;
     return { d, i };
   });
 </script>
@@ -130,8 +137,8 @@
         <circle cx={l.x} cy={l.y} r={2.5 * u} />
         <text x={l.x + 8 * u} y={l.y + 4 * u} font-size={(l.kind === 'city' ? 12 : 11) * u}>{l.name}</text>
       {/each}
-      <text class="ocean" x="420" y="1250" font-size={13 * u} letter-spacing={6 * u}>OCÉAN</text>
-      <text class="ocean" x="400" y={1250 + 22 * u} font-size={13 * u} letter-spacing={6 * u}>ATLANTIQUE</text>
+      <text class="ocean" x="70" y="2150" font-size={13 * u} letter-spacing={6 * u}>OCÉAN</text>
+      <text class="ocean" x="50" y={2150 + 22 * u} font-size={13 * u} letter-spacing={6 * u}>ATLANTIQUE</text>
     </g>
 
     {#each spots as s}
